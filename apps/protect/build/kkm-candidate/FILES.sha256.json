@@ -1,0 +1,11 @@
+{
+  "Dockerfile": "543719a1159c9ce3785f0e04d22281c2437a1d24139cfb70121416e21fe2fd9e",
+  "REVIEW.txt": "0e5da6f246e3f6db06bcfc72519e6646072daecb37c3dfe8f362775719cb8980",
+  "build-requirements.txt": "35d8f853142e3bd4bc7bc7751ba11d8beb7c076310c6d95cbd82aa7a96bc5af8",
+  "container-roundtrip.py": "ba27b91f39bbb2b1b9bffabb46a050bed042f786c248f7498bc991b40cbf41f0",
+  "fetch-inputs.py": "9e3cea0e1f2e7d894d74c9aa8e0970459118c3e94b4179159b6900a37164bcc1",
+  "prepare-context.py": "7c6c06546e37ff3d6bb7697c63c6e9cc10ccf269cd94c0dfa1210ee63c33068b",
+  "publish-kkm.yml.proposed": "41f8d7affb59e4f53f796ce984c481ca92851a3414b2a0195b039bfefb36452f",
+  "runtime-requirements.txt": "1e83e7ed3d9f2dd6469bec45bc313ecfbd3849b197306a8a39e21e1f7895b9c5",
+  "verify-image.py": "e5ee2979e1d4e712f4d57cc973ddfa8379ce2c970abc56ea8835239c0701ac59"
+}

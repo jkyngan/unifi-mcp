@@ -1,0 +1,40 @@
+KKM one-off clean-runner publication proposal — INACTIVE, approval pending
+
+Application source: 7fa82e05040ddf1c8a6d1916ce4f399417e8e25d.
+Recipe destination after review: apps/protect/build/kkm-candidate/.
+Proposed workflow remains publish-kkm.yml.proposed outside .github/workflows.
+No active workflow, branch, permission, package, tag, or deployment change made.
+
+Clean build:
+- Base pinned to python@sha256:3dd7cc108ec1493442514f5c2a871af6af0ec31d768ff6e378a93340c3b3db5f (amd64).
+- runtime-requirements.txt is frozen uv 0.12.19 export of Protect production dependency closure, with upstream hashes; no dependency unlock/update. ANTLR alone split out.
+- Build tools are separately hash-pinned to the versions already used in the authorized local cache: hatchling 1.32.4, hatch-vcs 0.5.0, setuptools 84.0.0, setuptools-scm 10.3.4, wheel 0.46.3, packaging 26.3, pathspec 1.1.1, pluggy 1.6.0, trove-classifiers 2026.9.21.13, tomlkit 0.15.1, vcs-versioning 2.5.0.
+- All registry dependencies/build tools require binary wheels and hashes. Only exact approved ANTLR 4.9.3 sdist (uv.lock hash) builds with pinned setuptools. Three owned workspace packages build with pinned hatch tooling and independent source-derived versions. No compilers, new host Python or uv needed.
+- prepare-context.py checks exact source HEAD and uv.lock SHA256, verifies each exported runtime version/hash against lock, and builds context from git archive. No workspace credentials, cache, or untracked files included.
+- Normal runner internet access to the pinned base registry and public PyPI is needed. fetch-inputs.py selects wheels using target-container tags/markers, downloads fresh hash-verified inputs with host Python standard library, and records every filename/URL/hash. Docker build runs with --network none and --no-index. No dedicated local cache is required. Build tools remain in builder stage.
+- Dependency/input reproducibility is intended, not bit-for-bit image reproducibility. The rebuilt image has its own image/config and registry manifest digest.
+
+Bounded trigger:
+- Exact push branch publish/kkm-7fa82e0-r1 AND path .github/kkm-publication/7fa82e0-r1.approved.
+- Marker contents must equal the exact application SHA.
+- No default-branch edit or workflow_dispatch required. GitHub push uses workflow from pushed ref.
+- Existing inspected publishers match main or product release tags, neither of which matches this branch. No release or latest tags are created.
+- After approval, install workflow only on the dedicated publication branch and add/change the marker in the single reviewed triggering push. Do not create that branch or marker until approval.
+- Top-level permissions empty; sole job receives contents:read/packages:write. Standard ubuntu-24.04 runner, 30-minute maximum, no Actions cache or uploaded artifact storage, no paid runner. Docker login uses only ephemeral GITHUB_TOKEN after tests. Package permission is repository-job scoped, not cryptographically restricted to a single package; the fixed workflow restricts its actions to the named package.
+- Tag: ghcr.io/jkyngan/unifi-protect-mcp-kkm-trial:7fa82e05040ddf1c8a6d1916ce4f399417e8e25d-amd64-r<RUN_ID>-a<ATTEMPT>. Unique run/attempt suffix avoids treating a rebuild as the old image.
+- Capture source SHA, recipe SHA, recipe checksums, synthetic results, image config ID, registry manifest digest. Pull by returned digest and require matching verified config ID. No deployment.
+- Package initially private. Public visibility is a separate explicitly authorized owner action after publication and verification. No PAT or registry credentials for HKOFFICE are proposed.
+
+Verification gate:
+- Preinstalled Docker/Python/FFmpeg/ffprobe required. Fail if unavailable; no implicit installation.
+- Image pip check; normal application import with clip store disabled; 38 focused tests with exactly two expected missing FFmpeg/HIIS skips inside production image; six real synthetic MP4 direct/execute/batch transfers inside network-disabled container; host decodes video/audio and checks equality/nonzero audio/absence in silent fixture.
+- Actual private HIIS source is not included in public CI, so repeat private-wrapper tests later against the new candidate in authorized environment before any end-to-end production claim.
+- Registry push occurs only after every gate succeeds.
+
+Completed preparation checks:
+- All four Python scripts pass Ruff and formatting and parse.
+- Proposed YAML parses and exact branch/path/permissions assertions pass; each shell step passes bash -n.
+- Exact source, lock hash, and runtime exported dependency versions/hashes validated against current canonical source.
+- Revised recipe built locally and passed image verification on 2026-10-04. Initial direct-in-build PyPI attempt failed due container DNS; revised runner-fetch/offline-build flow succeeded without network configuration changes. Initial output-permission check needed a test-harness correction for host-owned helper file; final verification passed. GitHub workflow remains unexecuted. Future CI rebuild must repeat every gate and produce its own digest; local success is not CI or production playback.
+
+Local verified candidate: unifi-protect-mcp:clean-7fa82e0-amd64; image ID sha256:69c2856d7a794c175dfd51bc7e332466f56ae2ad537bd7cbe4a3e749363beebc. Python 3.13.16; 61 installed distributions including pip. 36 focused tests passed, 2 expected skips; 6 synthetic transfers passed byte/hash/video/audio equality. No new native compilation/toolchain. Private HIIS wrapper not rerun inside this candidate. UID/GID 0. No registry digest until a separately approved push.

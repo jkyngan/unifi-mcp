@@ -1,0 +1,73 @@
+# One-off KKM publication approved by repository owner on 2026-10-04. No deployment.
+name: Publish approved KKM candidate 7fa82e0 r1
+on:
+  push:
+    branches: ['publish/kkm-7fa82e0-r1']
+    paths: ['.github/kkm-publication/7fa82e0-r1.approved']
+permissions: {}
+concurrency:
+  group: kkm-candidate-7fa82e0-r1
+  cancel-in-progress: false
+jobs:
+  build-test-publish:
+    if: github.repository == 'jkyngan/unifi-mcp' && github.ref == 'refs/heads/publish/kkm-7fa82e0-r1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SOURCE_SHA: 7fa82e05040ddf1c8a6d1916ce4f399417e8e25d
+      PACKAGE: ghcr.io/jkyngan/unifi-protect-mcp-kkm-trial
+      RECIPE_PATH: apps/protect/build/kkm-candidate
+    steps:
+      - name: Fetch only public pinned application and approved recipe
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v docker
+          command -v python3
+          command -v ffmpeg
+          command -v ffprobe
+          git init review
+          git -C review remote add origin https://github.com/jkyngan/unifi-mcp.git
+          git -C review fetch --depth=1 origin "$GITHUB_SHA"
+          git -C review checkout --detach FETCH_HEAD
+          test "$(cat review/.github/kkm-publication/7fa82e0-r1.approved)" = "$SOURCE_SHA"
+          git init application
+          git -C application remote add origin https://github.com/jkyngan/unifi-mcp.git
+          git -C application fetch --depth=1 origin "$SOURCE_SHA"
+          git -C application checkout --detach FETCH_HEAD
+          python3 "review/$RECIPE_PATH/prepare-context.py" application context
+          python3 "review/$RECIPE_PATH/fetch-inputs.py" context
+      - name: Build a new amd64 candidate and verify before any login or push
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --network none --platform linux/amd64 --file "context/recipe/Dockerfile" \
+            --label "io.github.jkyngan.recipe.revision=$GITHUB_SHA" \
+            --tag kkm-candidate:verified --iidfile candidate-image-id.txt context
+          python3 "review/$RECIPE_PATH/verify-image.py" kkm-candidate:verified context/source output
+          test "$(cat candidate-image-id.txt)" = "$(docker image inspect kkm-candidate:verified --format '{{.Id}}')"
+          cat output/verified.json >> "$GITHUB_STEP_SUMMARY"
+          sha256sum context/recipe/* >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish only verified candidate using ephemeral job token
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          export DOCKER_CONFIG="$RUNNER_TEMP/kkm-docker-auth"
+          mkdir -p "$DOCKER_CONFIG"
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true; rm -rf "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          IMAGE="$PACKAGE:$SOURCE_SHA-amd64-r$GITHUB_RUN_ID-a$GITHUB_RUN_ATTEMPT"
+          docker tag "$(cat candidate-image-id.txt)" "$IMAGE"
+          docker push "$IMAGE"
+          DIGEST_REF="$(docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}')"
+          docker pull "$DIGEST_REF"
+          test "$(docker image inspect "$DIGEST_REF" --format '{{.Id}}')" = "$(cat candidate-image-id.txt)"
+          printf '\nApplication: %s\nRecipe: %s\nImage: %s\nPull by digest: %s\n' "$SOURCE_SHA" "$GITHUB_SHA" "$IMAGE" "$DIGEST_REF" >> "$GITHUB_STEP_SUMMARY"
+# Package starts private. Owner makes only this dedicated package public after
+# verifying candidate evidence; no visibility API/credential is introduced here.
+# No deployment, source tag, release, latest tag, or other service publication.
