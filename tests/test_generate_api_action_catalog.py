@@ -329,7 +329,7 @@ def test_check_mode_does_not_write_stale_output(tmp_path: Path) -> None:
     assert output.read_text() == "stale\n"
 
 
-def test_repository_catalog_is_complete_with_only_streaming_exclusions() -> None:
+def test_repository_catalog_is_complete_with_mcp_only_exclusions() -> None:
     generator = _load_generator()
 
     payload = json.loads(generator.render_catalog(REPO_ROOT))
@@ -337,6 +337,8 @@ def test_repository_catalog_is_complete_with_only_streaming_exclusions() -> None
     assert len(payload["actions"]) == 272
     assert [item["name"] for item in payload["excluded"]] == [
         "access_subscribe_events",
+        "protect_export_clip_artifact",
+        "protect_read_clip_chunk",
         "protect_subscribe_events",
         "unifi_subscribe_events",
     ]

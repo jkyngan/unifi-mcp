@@ -25,6 +25,9 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
         await core_tests.ClipTests.asyncSetUp(self)
         # Restore native uiprotect enums; only the controller/camera is synthetic.
         self.sdk.stop()
+        # Import native extensions before patch.dict snapshots sys.modules.
+        # Restoring that snapshot must not unload/reimport PyAV between tests.
+        importlib.import_module("uiprotect.data")
         from unifi_core.jobs import JobStore
         from unifi_mcp_shared.meta_tools import register_meta_tools
         from unifi_mcp_shared.permissioned_tool import setup_permissioned_tool

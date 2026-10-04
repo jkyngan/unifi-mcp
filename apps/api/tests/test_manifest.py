@@ -135,3 +135,15 @@ def test_loader_reads_only_the_unifi_api_package(monkeypatch) -> None:
 
     assert len(registry) == 1
     assert requested == ["unifi_api"]
+
+
+@pytest.mark.parametrize("name", ["protect_export_clip_artifact", "protect_read_clip_chunk"])
+def test_private_clip_tools_are_excluded_from_rest_actions(name):
+    registry = ManifestRegistry.load()
+    assert not registry.has(name)
+    with pytest.raises(ToolNotFound):
+        registry.resolve(name)
+    catalog = json.loads(manifest._read_catalog_resource())
+    exclusion = next(entry for entry in catalog["excluded"] if entry["name"] == name)
+    assert exclusion["product"] == "protect"
+    assert "not exposed" in exclusion["reason"]

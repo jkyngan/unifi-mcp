@@ -1,4 +1,4 @@
-# Protect Server Tool Reference (62 tools)
+# Protect Server Tool Reference (64 tools)
 
 Complete reference for `protect_*` tools. All read tools are always available. All mutations are **disabled by default** — the user must explicitly enable them because Protect controls physical security hardware.
 
@@ -95,13 +95,15 @@ Always available, regardless of registration mode.
 ## Recordings
 
 <!-- AUTO:tools:recordings -->
-4 tools.
+6 tools.
 
 | Tool | Type | Description |
 |------|------|-------------|
 | `protect_export_clip` | Read | Exports a video clip from a camera for a specified time range. |
+| `protect_export_clip_artifact` | Read | Export a short original MP4 into private temporary storage, preserving source audio. |
 | `protect_get_recording_status` | Read | Returns the current recording state for one or all cameras. |
 | `protect_list_recordings` | Read | Returns recording availability information for a camera within a time range. |
+| `protect_read_clip_chunk` | Read | Read up to 65536 original MP4 bytes from an unexpired private clip on this Protect server. |
 | `protect_delete_recording` | Mutate | Attempts to delete recordings for a camera in a time range. |
 <!-- /AUTO:tools:recordings -->
 

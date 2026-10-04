@@ -110,10 +110,12 @@ existing Node TypeScript stripping, without importing server/config code.
 The standalone runner still bypasses package initializers and uses a synthetic
 controller. It does not replace normal imports, startup, or the full project gates.
 See [Linux verification results](private-clips-verification.md) for exact coverage
-and the remaining locked-environment blocker.
-Before rollout, run the official Protect manifest generator and required project
-checks in the approved locked environment. The isolated manifest additions are
-marked with a generation note until full regeneration is completed.
+and the remaining rollout requirements.
+The official Protect manifest and related generated catalogs/references have now
+been regenerated in the complete locked Linux environment. Normal package imports,
+startup and native MCP tests pass; the report records the remaining full-repository
+and deployment gates. Private clip tools are explicitly excluded from the REST
+action API and remain available only in their opt-in MCP process scope.
 
 Canary one approved instance after explicit deployment/restart approval. Verify the actual
 connector yields a client-readable file with matching hash, decoded video and

@@ -62,7 +62,6 @@
     "protect_update_viewer": "unifi_protect_mcp.tools.system"
   },
   "note": "Auto-generated with full schemas from tool decorators. Do not edit manually.",
-  "private_clip_generation_note": "Only the two private-clip entries were refreshed from real tool registration using existing MCP 1.30/Pydantic; full MCP 2.1.1 official manifest regeneration remains required.",
   "tools": [
     {
       "annotations": {
