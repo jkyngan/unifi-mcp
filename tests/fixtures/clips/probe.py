@@ -1,8 +1,10 @@
 """Independently decode original and reconstructed fixtures with existing Blender."""
+
 import hashlib
 import json
 import sys
 from pathlib import Path
+
 import aud
 import bpy
 
@@ -37,13 +39,24 @@ for fixture, has_audio in (("tone.mp4", True), ("silent.mp4", False)):
             sound = aud.Sound(str(path))
             samples = sound.data()
             assert samples.size > 0 and float(abs(samples).max()) > 0.001
-            audio = {"specs": sound.specs, "samples": int(samples.size),
-                     "pcm_sha256": hashlib.sha256(samples.tobytes()).hexdigest()}
+            audio = {
+                "specs": sound.specs,
+                "samples": int(samples.size),
+                "pcm_sha256": hashlib.sha256(samples.tobytes()).hexdigest(),
+            }
         pair.append({"label": label, "file": str(path), "frame_sha256": images, "audio": audio})
     assert pair[0]["frame_sha256"] == pair[1]["frame_sha256"]
     assert pair[0]["frame_sha256"][0] != pair[0]["frame_sha256"][1]
     assert pair[0]["audio"] == pair[1]["audio"]
-    results.append({"fixture": fixture, "video_decodes": True, "frames_match": True,
-                    "audio_matches": has_audio, "silent_source": not has_audio, "details": pair})
+    results.append(
+        {
+            "fixture": fixture,
+            "video_decodes": True,
+            "frames_match": True,
+            "audio_matches": has_audio,
+            "silent_source": not has_audio,
+            "details": pair,
+        }
+    )
 (output / "decode-results.json").write_text(json.dumps(results, indent=2) + "\n")
 print("SYNTHETIC_VIDEO_AND_AUDIO_DECODE_VERIFIED")

@@ -192,7 +192,9 @@ class ExportClipArtifactInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     camera_id: str = Field(min_length=1, max_length=128, description="Camera ID on this Protect server")
     start: str = Field(min_length=1, max_length=64, description="ISO start timestamp with timezone")
-    end: str = Field(min_length=1, max_length=64, description="ISO end timestamp with timezone; short-clip limit applies")
+    end: str = Field(
+        min_length=1, max_length=64, description="ISO end timestamp with timezone; short-clip limit applies"
+    )
     channel_index: int = Field(default=0, ge=0, le=2, strict=True, description="Channel: 0 high, 1 medium, 2 low")
 
 

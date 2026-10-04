@@ -4,7 +4,7 @@ Only namespace-package initializers are bypassed. The artifact, manager, client,
 and (when available) real MCP serialization implementations execute unchanged.
 Controller calls are synthetic. This is not the repository's full pytest gate.
 """
-import importlib.util
+
 import sys
 import types
 import unittest

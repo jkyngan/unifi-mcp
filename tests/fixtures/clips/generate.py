@@ -2,6 +2,7 @@
 Run: blender --background --factory-startup --python tests/fixtures/clips/generate.py
 No footage or network is used. Files are deliberately small but decodable.
 """
+
 import math
 import struct
 import wave
@@ -16,8 +17,9 @@ with wave.open(str(wav), "wb") as file:
     file.setnchannels(1)
     file.setsampwidth(2)
     file.setframerate(16000)
-    file.writeframes(b"".join(struct.pack("<h", int(3000 * math.sin(i * 2 * math.pi * 440 / 16000)))
-                             for i in range(16000)))
+    file.writeframes(
+        b"".join(struct.pack("<h", int(3000 * math.sin(i * 2 * math.pi * 440 / 16000))) for i in range(16000))
+    )
 scene = bpy.context.scene
 scene.render.resolution_x = 128
 scene.render.resolution_y = 72

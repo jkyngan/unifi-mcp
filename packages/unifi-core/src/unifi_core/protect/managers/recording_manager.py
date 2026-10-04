@@ -68,14 +68,24 @@ class RecordingManager:
 
         async def stream(receive):
             return await camera.get_video(
-                start=start, end=end, channel_index=channel_index,
-                iterator_callback=receive, chunk_size=MAX_CHUNK_BYTES,
+                start=start,
+                end=end,
+                channel_index=channel_index,
+                iterator_callback=receive,
+                chunk_size=MAX_CHUNK_BYTES,
             )
 
         result = await self._artifacts.create(scope=scope, camera_id=camera_id, stream=stream)
-        return {**result, "camera_id": camera_id, "start": start.isoformat(), "end": end.isoformat(),
-                "duration_seconds": duration, "channel_index": channel_index, "is_timelapse": False,
-                "audio_policy": "Original source tracks preserved; no audio added to silent recordings"}
+        return {
+            **result,
+            "camera_id": camera_id,
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+            "duration_seconds": duration,
+            "channel_index": channel_index,
+            "is_timelapse": False,
+            "audio_policy": "Original source tracks preserved; no audio added to silent recordings",
+        }
 
     async def read_clip_chunk(
         self, camera_id: str, artifact_id: str, offset: int = 0, max_bytes: int = 32768

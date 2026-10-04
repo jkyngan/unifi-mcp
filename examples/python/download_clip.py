@@ -3,6 +3,7 @@
 Import download_clip and supply async call_tool(name, arguments). This module
 does not create credentials, connect to a new service, or print media payloads.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -77,10 +78,15 @@ async def download_clip(call_tool, export_result, camera_id: str, destination: P
     """
     meta = unwrap_tool_data(export_result)
     size, artifact_id, expected = meta.get("size_bytes"), meta.get("artifact_id"), meta.get("sha256")
-    if (type(size) is not int or not 0 < size <= 128 * 1024 * 1024
-            or not isinstance(artifact_id, str) or not _HEX.fullmatch(artifact_id)
-            or not isinstance(expected, str) or not _HEX.fullmatch(expected)
-            or meta.get("content_type") != "video/mp4"):
+    if (
+        type(size) is not int
+        or not 0 < size <= 128 * 1024 * 1024
+        or not isinstance(artifact_id, str)
+        or not _HEX.fullmatch(artifact_id)
+        or not isinstance(expected, str)
+        or not _HEX.fullmatch(expected)
+        or meta.get("content_type") != "video/mp4"
+    ):
         raise ValueError("Invalid clip metadata")
     if type(chunk_bytes) is not int or not 1 <= chunk_bytes <= 65536:
         raise ValueError("Invalid chunk size")
@@ -95,23 +101,35 @@ async def download_clip(call_tool, export_result, camera_id: str, destination: P
         with os.fdopen(fd, "wb") as file:
             while offset < size:
                 requested = min(chunk_bytes, size - offset)
-                raw = await call_tool("protect_read_clip_chunk", {
-                    "camera_id": camera_id, "artifact_id": artifact_id,
-                    "offset": offset, "max_bytes": requested,
-                })
+                raw = await call_tool(
+                    "protect_read_clip_chunk",
+                    {
+                        "camera_id": camera_id,
+                        "artifact_id": artifact_id,
+                        "offset": offset,
+                        "max_bytes": requested,
+                    },
+                )
                 chunk = unwrap_tool_data(raw)
-                if (chunk.get("artifact_id") != artifact_id or chunk.get("size_bytes") != size
-                        or chunk.get("sha256") != expected or chunk.get("offset") != offset
-                        or chunk.get("content_type") != "video/mp4"):
+                if (
+                    chunk.get("artifact_id") != artifact_id
+                    or chunk.get("size_bytes") != size
+                    or chunk.get("sha256") != expected
+                    or chunk.get("offset") != offset
+                    or chunk.get("content_type") != "video/mp4"
+                ):
                     raise ValueError("Clip identity or offset changed")
                 encoded = chunk.get("data_base64")
                 if not isinstance(encoded, str) or len(encoded) > 4 * ((requested + 2) // 3):
                     raise ValueError("Invalid encoded chunk size")
                 payload = base64.b64decode(encoded, validate=True)
-                if (len(payload) != requested or chunk.get("length") != len(payload)
-                        or chunk.get("next_offset") != offset + len(payload)
-                        or chunk.get("eof") is not (offset + len(payload) == size)
-                        or hashlib.sha256(payload).hexdigest() != chunk.get("chunk_sha256")):
+                if (
+                    len(payload) != requested
+                    or chunk.get("length") != len(payload)
+                    or chunk.get("next_offset") != offset + len(payload)
+                    or chunk.get("eof") is not (offset + len(payload) == size)
+                    or hashlib.sha256(payload).hexdigest() != chunk.get("chunk_sha256")
+                ):
                     raise ValueError("Clip chunk integrity check failed")
                 # A bounded write is offloaded; await completion before closing on abort.
                 write = asyncio.create_task(asyncio.to_thread(file.write, payload))

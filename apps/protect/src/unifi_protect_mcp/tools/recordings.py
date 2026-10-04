@@ -29,6 +29,7 @@ from unifi_protect_mcp.runtime import recording_manager, server
 
 logger = logging.getLogger(__name__)
 
+
 # Private clip tools intentionally use bounded JSON chunks in the standard data
 # envelope: direct, execute and batch paths can all retain the bytes.
 @server.tool(
@@ -54,19 +55,16 @@ async def protect_export_clip_artifact(
 ) -> Dict[str, Any]:
     """Create an ephemeral original-file artifact without changing NVR recordings."""
     try:
-        values = ExportClipArtifactInput(
-            camera_id=camera_id, start=start, end=end, channel_index=channel_index
-        )
+        values = ExportClipArtifactInput(camera_id=camera_id, start=start, end=end, channel_index=channel_index)
         start_dt, end_dt = datetime.fromisoformat(values.start), datetime.fromisoformat(values.end)
-        result = await recording_manager.export_clip_artifact(
-            values.camera_id, start_dt, end_dt, values.channel_index
-        )
+        result = await recording_manager.export_clip_artifact(values.camera_id, start_dt, end_dt, values.channel_index)
         return {"success": True, "data": result}
     except ClipError as exc:
         return {"success": False, "error": f"Failed to export private clip: {exc}"}
     except (ValidationError, ValueError, TypeError):
         return {
-            "success": False, "error": "Failed to export private clip: invalid camera, channel or timezone timestamp"
+            "success": False,
+            "error": "Failed to export private clip: invalid camera, channel or timezone timestamp",
         }
     except Exception as exc:
         # Export exceptions may contain controller URLs/credentials. Do not log
@@ -105,9 +103,7 @@ async def protect_read_clip_chunk(
 ) -> Dict[str, Any]:
     """Return actual bounded bytes using the existing authenticated MCP transport."""
     try:
-        values = ReadClipChunkInput(
-            camera_id=camera_id, artifact_id=artifact_id, offset=offset, max_bytes=max_bytes
-        )
+        values = ReadClipChunkInput(camera_id=camera_id, artifact_id=artifact_id, offset=offset, max_bytes=max_bytes)
         result = await recording_manager.read_clip_chunk(**values.model_dump())
         return {"success": True, "data": result}
     except (ClipError, UniFiNotFoundError):
@@ -117,7 +113,6 @@ async def protect_read_clip_chunk(
     except Exception as exc:
         logger.warning("Private clip read failed (%s)", type(exc).__name__)
         return {"success": False, "error": "Failed to read private clip"}
-
 
 
 # ---------------------------------------------------------------------------

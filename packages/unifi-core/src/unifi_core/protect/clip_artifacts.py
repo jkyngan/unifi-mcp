@@ -3,6 +3,7 @@
 This module has no MCP or controller dependency. Files are private, never paths
 supplied by a caller. A process lock allows safe restart cleanup of this store.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -40,9 +41,13 @@ class ClipLimits:
 
     def __post_init__(self):
         ceilings = {
-            "max_duration_seconds": 120, "max_clip_bytes": 128 * 1024 * 1024,
-            "max_total_bytes": 1024 * 1024 * 1024, "ttl_seconds": 3600,
-            "max_concurrent": 4, "max_artifacts": 128, "export_timeout_seconds": 300,
+            "max_duration_seconds": 120,
+            "max_clip_bytes": 128 * 1024 * 1024,
+            "max_total_bytes": 1024 * 1024 * 1024,
+            "ttl_seconds": 3600,
+            "max_concurrent": 4,
+            "max_artifacts": 128,
+            "export_timeout_seconds": 300,
         }
         for name, ceiling in ceilings.items():
             value = getattr(self, name)
@@ -104,6 +109,7 @@ def inspect_mp4(path: Path) -> dict:
     handlers: list[bytes] = []
     boxes = 0
     with path.open("rb") as file:
+
         def walk(begin: int, end: int, depth: int):
             nonlocal boxes
             pos = begin
@@ -136,11 +142,16 @@ def inspect_mp4(path: Path) -> dict:
                     file.seek(pos + header + 8)
                     handlers.append(file.read(4))
                 pos += length
+
         walk(0, size, 0)
     if not {b"ftyp", b"moov", b"mdat"} <= found or b"vide" not in handlers:
         raise ClipError("No complete MP4 video recording available")
-    return {"container_validated": True, "has_audio": b"soun" in handlers,
-            "video_tracks": handlers.count(b"vide"), "audio_tracks": handlers.count(b"soun")}
+    return {
+        "container_validated": True,
+        "has_audio": b"soun" in handlers,
+        "video_tracks": handlers.count(b"vide"),
+        "audio_tracks": handlers.count(b"soun"),
+    }
 
 
 @dataclass(frozen=True)
@@ -182,12 +193,14 @@ class ClipArtifactStore:
         try:
             if os.name == "nt":
                 import msvcrt
+
                 if os.fstat(fd).st_size == 0:
                     os.write(fd, b"0")
                 os.lseek(fd, 0, os.SEEK_SET)
                 msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
             else:
                 import fcntl
+
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             # Only our flat opaque filenames; never recursive cleanup or symlinks.
             for path in self.directory.iterdir():
@@ -206,6 +219,7 @@ class ClipArtifactStore:
                 # Assign within the worker, so cancellation cannot leak a lock fd.
                 def open_store():
                     self._lock_fd = self._open_store()
+
                 try:
                     await _io(open_store)
                 finally:
@@ -255,9 +269,11 @@ class ClipArtifactStore:
         digest = hashlib.sha256()
         published = False
         try:
+
             def open_partial():
                 nonlocal fd
                 fd = _regular_open(partial, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+
             await _io(open_partial)
 
             async def receive(total: int, chunk: bytes | None):
@@ -294,14 +310,20 @@ class ClipArtifactStore:
                     raise ClipError("Clip store is closed")
                 await _io(os.replace, partial, ready)
                 entry = _Artifact(
-                    ready, scope, camera_id, size, digest.hexdigest(),
+                    ready,
+                    scope,
+                    camera_id,
+                    size,
+                    digest.hexdigest(),
                     self._clock() + self.limits.ttl_seconds,
-                    self._wall_clock() + self.limits.ttl_seconds, media,
+                    self._wall_clock() + self.limits.ttl_seconds,
+                    media,
                 )
                 self._entries[artifact_id] = entry
                 published = True
                 return self._metadata(artifact_id, entry)
         finally:
+
             async def finish():
                 if fd is not None:
                     await _io(os.close, fd)
@@ -310,16 +332,22 @@ class ClipArtifactStore:
                     await _io(ready.unlink, True)
                 async with self._lock:
                     self._active.discard(task)
+
             await _settle(asyncio.create_task(finish()))
 
     @staticmethod
     def _metadata(artifact_id: str, entry: _Artifact) -> dict:
-        return {"artifact_id": artifact_id, "size_bytes": entry.size, "sha256": entry.sha256,
-                "expires_at_unix": entry.expires_at, "content_type": "video/mp4",
-                "max_chunk_bytes": MAX_CHUNK_BYTES, **entry.media}
+        return {
+            "artifact_id": artifact_id,
+            "size_bytes": entry.size,
+            "sha256": entry.sha256,
+            "expires_at_unix": entry.expires_at,
+            "content_type": "video/mp4",
+            "max_chunk_bytes": MAX_CHUNK_BYTES,
+            **entry.media,
+        }
 
-    async def read(self, *, artifact_id: str, scope: tuple, camera_id: str,
-                   offset: int, max_bytes: int) -> dict:
+    async def read(self, *, artifact_id: str, scope: tuple, camera_id: str, offset: int, max_bytes: int) -> dict:
         if not isinstance(artifact_id, str) or not _ID.fullmatch(artifact_id):
             raise ClipError("Clip unavailable")
         if type(offset) is not int or offset < 0:
@@ -333,6 +361,7 @@ class ClipArtifactStore:
                 raise ClipError("Clip unavailable")
             if offset >= entry.size:
                 raise ClipError("Offset must be smaller than the clip size")
+
             def read_chunk():
                 fd = _regular_open(entry.path, os.O_RDONLY)
                 try:
@@ -345,15 +374,20 @@ class ClipArtifactStore:
                     return data
                 finally:
                     os.close(fd)
+
             payload = await _io(read_chunk)
             # Expiry is checked again after IO; no lease extends the TTL.
             if self._clock() >= entry.deadline:
                 raise ClipError("Clip unavailable")
-            return {**self._metadata(artifact_id, entry), "offset": offset,
-                    "length": len(payload), "next_offset": offset + len(payload),
-                    "eof": offset + len(payload) == entry.size,
-                    "chunk_sha256": hashlib.sha256(payload).hexdigest(),
-                    "data_base64": base64.b64encode(payload).decode("ascii")}
+            return {
+                **self._metadata(artifact_id, entry),
+                "offset": offset,
+                "length": len(payload),
+                "next_offset": offset + len(payload),
+                "eof": offset + len(payload) == entry.size,
+                "chunk_sha256": hashlib.sha256(payload).hexdigest(),
+                "data_base64": base64.b64encode(payload).decode("ascii"),
+            }
 
     async def close(self):
         async with self._lock:
