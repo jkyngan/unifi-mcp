@@ -57,6 +57,16 @@ policy:
     mcp_content_mode: ${oc.env:UNIFI_PROTECT_MCP_CONTENT_MODE,adaptive}
 
 protect:
+  clips:
+    enabled: ${oc.env:UNIFI_PROTECT_CLIPS_ENABLED,false}
+    directory: ${oc.env:UNIFI_PROTECT_CLIPS_DIRECTORY,""}
+    max_duration_seconds: ${oc.env:UNIFI_PROTECT_CLIPS_MAX_DURATION_SECONDS,30}
+    max_clip_bytes: ${oc.env:UNIFI_PROTECT_CLIPS_MAX_CLIP_BYTES,67108864}
+    max_total_bytes: ${oc.env:UNIFI_PROTECT_CLIPS_MAX_TOTAL_BYTES,268435456}
+    ttl_seconds: ${oc.env:UNIFI_PROTECT_CLIPS_TTL_SECONDS,600}
+    max_concurrent: ${oc.env:UNIFI_PROTECT_CLIPS_MAX_CONCURRENT,1}
+    max_artifacts: ${oc.env:UNIFI_PROTECT_CLIPS_MAX_ARTIFACTS,32}
+    export_timeout_seconds: ${oc.env:UNIFI_PROTECT_CLIPS_EXPORT_TIMEOUT_SECONDS,120}
   events:
     buffer_size: ${oc.env:PROTECT_EVENT_BUFFER_SIZE,100}
     buffer_ttl_seconds: ${oc.env:PROTECT_EVENT_BUFFER_TTL,300}

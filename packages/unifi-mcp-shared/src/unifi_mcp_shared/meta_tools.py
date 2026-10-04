@@ -385,12 +385,24 @@ def register_meta_tools(
                 errors.append({"index": i, "error": "Missing 'tool' field"})
                 continue
 
+            # JobStore retains completed results independently of clip expiry and
+            # camera permission. Never cache raw media chunks in background jobs.
+            # Artifact creation may be batched; fetch its bytes via direct/execute.
+            if tool == "protect_read_clip_chunk":
+                errors.append({"index": i, "error": "Private clip chunks require a direct or execute call, not batch"})
+                continue
+
             try:
                 # Create a closure that captures the current tool and arguments
                 async def _make_executor(t, a):
                     async def _execute():
                         result = await server.call_tool(t, a, context=ctx)
-                        return normalize_call_tool_result(result)
+                        normalized = normalize_call_tool_result(result)
+                        data = normalized.get("data") if isinstance(normalized, dict) else None
+                        # Also cover a chunk read nested inside protect_execute.
+                        if isinstance(data, dict) and "artifact_id" in data and "data_base64" in data:
+                            return {"success": False, "error": "Private clip chunks cannot be retained in batch jobs"}
+                        return normalized
 
                     return _execute
 

@@ -181,3 +181,9 @@ permissions:
 ```
 
 You can override the config file location with `CONFIG_PATH=/absolute/path/to/config.yaml` in the process environment. Relative paths are rejected. The server never automatically loads `config/config.yaml` from the working directory; existing custom YAML deployments must select their trusted file explicitly.
+
+### Private original clips (opt-in)
+
+See [private-clips.md](private-clips.md) for the `UNIFI_PROTECT_CLIPS_*` limits,
+dedicated storage permissions, camera scope, client reconstruction and rollout gates.
+`UNIFI_PROTECT_CLIPS_ENABLED` defaults to `false`; no public media route is added.

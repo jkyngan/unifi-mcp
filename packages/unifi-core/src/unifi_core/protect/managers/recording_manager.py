@@ -15,10 +15,13 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from unifi_core.exceptions import UniFiNotFoundError
-from unifi_core.protect.managers.connection_manager import ProtectConnectionManager
+from unifi_core.protect.clip_artifacts import MAX_CHUNK_BYTES, ClipArtifactStore, ClipError
+
+if TYPE_CHECKING:
+    from unifi_core.protect.managers.connection_manager import ProtectConnectionManager
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +29,63 @@ logger = logging.getLogger(__name__)
 class RecordingManager:
     """Domain logic for UniFi Protect recordings."""
 
-    def __init__(self, connection_manager: ProtectConnectionManager) -> None:
+    def __init__(
+        self, connection_manager: ProtectConnectionManager, artifact_store: ClipArtifactStore | None = None
+    ) -> None:
         self._cm = connection_manager
+        self._artifacts = artifact_store
+
+    def _clip_access(self, camera_id: str):
+        """Use the same NVR media permission as Camera.get_video on EVERY read.
+
+        Scope is the existing server/controller principal, not a caller-supplied
+        identity. Shared-credential gateway users retain that same shared scope.
+        """
+        from uiprotect.data import ModelType, PermissionNode
+
+        if self._artifacts is None:
+            raise ClipError("Private clip retrieval is disabled; ask the operator to enable it")
+        camera = self._get_camera(camera_id)
+        user = self._cm.client.bootstrap.auth_user
+        if not user or not user.id or not user.can(ModelType.CAMERA, PermissionNode.READ_MEDIA, camera):
+            raise ClipError("Camera media access denied")
+        scope = (self._cm.host, self._cm.port, self._cm.site, str(user.id))
+        return camera, scope
+
+    async def export_clip_artifact(
+        self, camera_id: str, start: datetime, end: datetime, channel_index: int = 0
+    ) -> Dict[str, Any]:
+        """Retain a bounded original MP4, including source audio, for chunk reads."""
+        camera, scope = self._clip_access(camera_id)
+        assert self._artifacts is not None
+        if start.utcoffset() is None or end.utcoffset() is None:
+            raise ClipError("Clip timestamps must include a timezone")
+        duration = (end - start).total_seconds()
+        if not 0 < duration <= self._artifacts.limits.max_duration_seconds:
+            raise ClipError("Clip duration is outside the configured short-clip limit")
+        if type(channel_index) is not int or channel_index not in (0, 1, 2):
+            raise ClipError("Channel index must be 0, 1 or 2")
+
+        async def stream(receive):
+            return await camera.get_video(
+                start=start, end=end, channel_index=channel_index,
+                iterator_callback=receive, chunk_size=MAX_CHUNK_BYTES,
+            )
+
+        result = await self._artifacts.create(scope=scope, camera_id=camera_id, stream=stream)
+        return {**result, "camera_id": camera_id, "start": start.isoformat(), "end": end.isoformat(),
+                "duration_seconds": duration, "channel_index": channel_index, "is_timelapse": False,
+                "audio_policy": "Original source tracks preserved; no audio added to silent recordings"}
+
+    async def read_clip_chunk(
+        self, camera_id: str, artifact_id: str, offset: int = 0, max_bytes: int = 32768
+    ) -> Dict[str, Any]:
+        """Return bounded bytes under the current controller/camera media scope."""
+        _, scope = self._clip_access(camera_id)
+        assert self._artifacts is not None
+        return await self._artifacts.read(
+            scope=scope, camera_id=camera_id, artifact_id=artifact_id, offset=offset, max_bytes=max_bytes
+        )
 
     # ------------------------------------------------------------------
     # Helpers

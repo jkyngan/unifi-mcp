@@ -309,6 +309,12 @@ For a reproducible Network, Protect, or Access MCP problem, if the server can st
 - [Sponsor on GitHub](https://github.com/sponsors/sirkirby)
 - [See what sponsorship funds](https://unifimcp.com/sponsor/)
 
+## Private Protect clips
+
+Opt-in bounded original MP4 retrieval is documented in
+[Private clip configuration and client delivery](apps/protect/docs/private-clips.md).
+It is disabled by default and preserves the existing metadata-only export API.
+
 ## License
 
 [MIT](LICENSE)
