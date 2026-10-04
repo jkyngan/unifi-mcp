@@ -20,7 +20,7 @@ Leverage agents and agentic AI workflows to manage your UniFi deployment.
 | Server | Status | Tools | Package |
 |--------|--------|-------|---------|
 | [Network](apps/network/) | Stable | 194 | [`unifi-network-mcp`](https://pypi.org/project/unifi-network-mcp/) |
-| [Protect](apps/protect/) | Stable | 62 | [`unifi-protect-mcp`](https://pypi.org/project/unifi-protect-mcp/) |
+| [Protect](apps/protect/) | Stable | 64 | [`unifi-protect-mcp`](https://pypi.org/project/unifi-protect-mcp/) |
 | [Access](apps/access/) | Stable | 37 | [`unifi-access-mcp`](https://pypi.org/project/unifi-access-mcp/) |
 
 ## Cloud Relay
@@ -267,7 +267,7 @@ This is a monorepo with shared packages:
 ```
 apps/
   network/          # UniFi Network MCP server (stable, 194 tools)
-  protect/          # UniFi Protect MCP server (stable, 62 tools)
+  protect/          # UniFi Protect MCP server (stable, 64 tools)
   access/           # UniFi Access MCP server (stable, 37 tools)
   api/              # Independent REST + GraphQL API server (beta)
   worker/           # Cloudflare Worker gateway + npm CLI
@@ -308,6 +308,12 @@ For a reproducible Network, Protect, or Access MCP problem, if the server can st
 
 - [Sponsor on GitHub](https://github.com/sponsors/sirkirby)
 - [See what sponsorship funds](https://unifimcp.com/sponsor/)
+
+## Private Protect clips
+
+Opt-in bounded original MP4 retrieval is documented in
+[Private clip configuration and client delivery](apps/protect/docs/private-clips.md).
+It is disabled by default and preserves the existing metadata-only export API.
 
 ## License
 

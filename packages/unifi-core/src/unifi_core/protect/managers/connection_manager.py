@@ -13,12 +13,12 @@ import time
 from typing import Any, Callable
 
 import aiohttp
-from uiprotect import ProtectApiClient
 from uiprotect.data import WSSubscriptionMessage
 
 from unifi_core.auth import AuthenticationStatus, AuthMethod
 from unifi_core.exceptions import UniFiConnectionError
 from unifi_core.protect.managers.id_portability import IdPortabilityReport, compare_id_portability
+from unifi_core.protect.streaming_client import StreamingProtectApiClient as ProtectApiClient
 from unifi_core.retry import RetryPolicy, retry_with_backoff
 from unifi_core.support_bundle import (
     ConnectivityProbe,

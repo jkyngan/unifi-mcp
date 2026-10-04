@@ -19,6 +19,7 @@ errors from unrecognized decorator kwargs like `permission_category`.
 """
 
 import os
+import tempfile
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,7 @@ from typing import Any
 from mcp.server.transport_security import TransportSecuritySettings
 
 from unifi_core.auth import UniFiAuth
+from unifi_core.protect.clip_artifacts import ClipArtifactStore, ClipLimits
 from unifi_mcp_shared.metadata import PROJECT_WEBSITE_URL, configure_mcp_server_metadata
 from unifi_mcp_shared.response_policy import resolve_mcp_content_mode, should_redact_response_sensitive_fields
 from unifi_mcp_shared.server import UniFiMCPServer
@@ -186,8 +188,19 @@ def get_event_manager() -> EventManager:
 
 
 @lru_cache
+def get_clip_artifact_store() -> ClipArtifactStore | None:
+    """Opt-in store; construction performs no IO or controller requests."""
+    cfg = get_config().protect.get("clips", {})
+    if str(cfg.get("enabled", False)).lower() not in {"true", "1", "yes"}:
+        return None
+    directory = cfg.get("directory") or str(Path(tempfile.gettempdir()) / "unifi-protect-clips")
+    limits = ClipLimits(**{name: int(cfg[name]) for name in ClipLimits.__dataclass_fields__ if name in cfg})
+    return ClipArtifactStore(Path(directory), limits)
+
+
+@lru_cache
 def get_recording_manager() -> RecordingManager:
-    return RecordingManager(get_connection_manager())
+    return RecordingManager(get_connection_manager(), get_clip_artifact_store())
 
 
 @lru_cache
@@ -273,6 +286,7 @@ connection_manager = get_connection_manager()
 camera_manager = get_camera_manager()
 event_manager = get_event_manager()
 recording_manager = get_recording_manager()
+clip_artifact_store = get_clip_artifact_store()
 light_manager = get_light_manager()
 sensor_manager = get_sensor_manager()
 chime_manager = get_chime_manager()

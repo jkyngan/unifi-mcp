@@ -17,6 +17,7 @@ from unifi_protect_mcp.jobs import get_job_status, start_async_tool
 
 # Shared singletons
 from unifi_protect_mcp.runtime import (
+    clip_artifact_store,
     config,
     connection_manager,
     event_manager,
@@ -61,6 +62,8 @@ async def main_async():
     assert_credentials_configured(config, plugin_name="unifi-protect", env_prefix="PROTECT", logger=logger)
 
     try:
+        if clip_artifact_store is not None:
+            await clip_artifact_store.start()
         # Initialize the global Protect connection
         logger.info("Initializing global Protect connection from main_async...")
         if not await connection_manager.initialize():
@@ -128,9 +131,13 @@ async def main_async():
         )
     finally:
         try:
-            await event_manager.stop_listening()
+            if clip_artifact_store is not None:
+                await clip_artifact_store.close()
         finally:
-            await connection_manager.close()
+            try:
+                await event_manager.stop_listening()
+            finally:
+                await connection_manager.close()
 
 
 def main():

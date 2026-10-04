@@ -12,7 +12,13 @@ from mcp.types import ToolAnnotations
 from pydantic import Field, ValidationError
 
 from unifi_core.exceptions import UniFiNotFoundError
-from unifi_core.protect.models._actions import DeleteRecordingInput, ExportClipInput
+from unifi_core.protect.clip_artifacts import ClipError
+from unifi_core.protect.models._actions import (
+    DeleteRecordingInput,
+    ExportClipArtifactInput,
+    ExportClipInput,
+    ReadClipChunkInput,
+)
 from unifi_core.protect.models.recordings import (
     from_controller as recording_from_controller,
 )
@@ -22,6 +28,91 @@ from unifi_core.protect.models.recordings import (
 from unifi_protect_mcp.runtime import recording_manager, server
 
 logger = logging.getLogger(__name__)
+
+
+# Private clip tools intentionally use bounded JSON chunks in the standard data
+# envelope: direct, execute and batch paths can all retain the bytes.
+@server.tool(
+    name="protect_export_clip_artifact",
+    description=(
+        "Export a short original MP4 into private temporary storage, preserving source audio. "
+        "Disabled unless the operator enables private clips. Returns an expiring artifact ID, "
+        "size and SHA-256; use protect_read_clip_chunk to obtain actual bytes. "
+        "This operation does not return a public URL or imply playback."
+    ),
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False),
+    permission_category="recording",
+    permission_action="read",
+    input_schema=ExportClipArtifactInput.model_json_schema(),
+)
+async def protect_export_clip_artifact(
+    camera_id: Annotated[str, Field(description="Camera ID from protect_list_cameras; scoped to this Protect server.")],
+    start: Annotated[str, Field(description="Start timestamp with explicit timezone, e.g. 2020-01-01T12:00:00+00:00.")],
+    end: Annotated[str, Field(description="End timestamp with timezone; default operator clip limit is 30 seconds.")],
+    channel_index: Annotated[
+        int, Field(strict=True, ge=0, le=2, description="Original video channel: 0 high, 1 medium, 2 low.")
+    ] = 0,
+) -> Dict[str, Any]:
+    """Create an ephemeral original-file artifact without changing NVR recordings."""
+    try:
+        values = ExportClipArtifactInput(camera_id=camera_id, start=start, end=end, channel_index=channel_index)
+        start_dt, end_dt = datetime.fromisoformat(values.start), datetime.fromisoformat(values.end)
+        result = await recording_manager.export_clip_artifact(values.camera_id, start_dt, end_dt, values.channel_index)
+        return {"success": True, "data": result}
+    except ClipError as exc:
+        return {"success": False, "error": f"Failed to export private clip: {exc}"}
+    except (ValidationError, ValueError, TypeError):
+        return {
+            "success": False,
+            "error": "Failed to export private clip: invalid camera, channel or timezone timestamp",
+        }
+    except Exception as exc:
+        # Export exceptions may contain controller URLs/credentials. Do not log
+        # payloads, paths, exception text or tracebacks at this media boundary.
+        logger.warning("Private clip export failed (%s)", type(exc).__name__)
+        return {
+            "success": False,
+            "error": "Failed to export private clip; verify access, recording availability and limits",
+        }
+
+
+@server.tool(
+    name="protect_read_clip_chunk",
+    description=(
+        "Read up to 65536 original MP4 bytes from an unexpired private clip on this Protect server. "
+        "Returns bounded base64 in data with offsets and SHA-256 checksums. Reassemble using code, "
+        "verify the complete file checksum, and expose the resulting MP4; never print chunks into chat. "
+        "Camera media permission is checked on every call."
+    ),
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False),
+    permission_category="recording",
+    permission_action="read",
+    input_schema=ReadClipChunkInput.model_json_schema(),
+)
+async def protect_read_clip_chunk(
+    camera_id: Annotated[str, Field(description="Same camera ID used to create the clip, on the same Protect server.")],
+    artifact_id: Annotated[
+        str, Field(pattern=r"^[0-9a-f]{64}$", description="Opaque artifact ID from export; never a path.")
+    ],
+    offset: Annotated[
+        int, Field(strict=True, ge=0, description="Zero-based byte offset; start with 0, then use next_offset.")
+    ] = 0,
+    max_bytes: Annotated[
+        int, Field(strict=True, ge=1, le=65536, description="Maximum decoded bytes per chunk (1..65536).")
+    ] = 32768,
+) -> Dict[str, Any]:
+    """Return actual bounded bytes using the existing authenticated MCP transport."""
+    try:
+        values = ReadClipChunkInput(camera_id=camera_id, artifact_id=artifact_id, offset=offset, max_bytes=max_bytes)
+        result = await recording_manager.read_clip_chunk(**values.model_dump())
+        return {"success": True, "data": result}
+    except (ClipError, UniFiNotFoundError):
+        return {"success": False, "error": "Failed to read private clip: unavailable, expired, denied or invalid range"}
+    except (ValidationError, ValueError, TypeError):
+        return {"success": False, "error": "Failed to read private clip: invalid ID, offset or chunk size"}
+    except Exception as exc:
+        logger.warning("Private clip read failed (%s)", type(exc).__name__)
+        return {"success": False, "error": "Failed to read private clip"}
 
 
 # ---------------------------------------------------------------------------

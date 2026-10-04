@@ -1,5 +1,5 @@
 {
-  "count": 62,
+  "count": 64,
   "generated_by": "scripts/generate_tool_manifest.py",
   "module_map": {
     "protect_acknowledge_event": "unifi_protect_mcp.tools.events",
@@ -19,6 +19,7 @@
     "protect_delete_recording": "unifi_protect_mcp.tools.recordings",
     "protect_detection_search_labels": "unifi_protect_mcp.tools.events",
     "protect_export_clip": "unifi_protect_mcp.tools.recordings",
+    "protect_export_clip_artifact": "unifi_protect_mcp.tools.recordings",
     "protect_get_camera": "unifi_protect_mcp.tools.cameras",
     "protect_get_camera_analytics": "unifi_protect_mcp.tools.cameras",
     "protect_get_camera_streams": "unifi_protect_mcp.tools.cameras",
@@ -44,6 +45,7 @@
     "protect_ptz_move": "unifi_protect_mcp.tools.cameras",
     "protect_ptz_preset": "unifi_protect_mcp.tools.cameras",
     "protect_ptz_zoom": "unifi_protect_mcp.tools.cameras",
+    "protect_read_clip_chunk": "unifi_protect_mcp.tools.recordings",
     "protect_reboot_camera": "unifi_protect_mcp.tools.cameras",
     "protect_recent_events": "unifi_protect_mcp.tools.events",
     "protect_search_detections": "unifi_protect_mcp.tools.events",
@@ -1883,6 +1885,131 @@
         }
       },
       "title": "Export Clip"
+    },
+    {
+      "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "auth_method": "local_only",
+      "description": "Export a short original MP4 into private temporary storage, preserving source audio. Disabled unless the operator enables private clips. Returns an expiring artifact ID, size and SHA-256; use protect_read_clip_chunk to obtain actual bytes. This operation does not return a public URL or imply playback.",
+      "name": "protect_export_clip_artifact",
+      "permission_action": "read",
+      "permission_category": "recording",
+      "schema": {
+        "input": {
+          "additionalProperties": false,
+          "description": "Short, normal-speed artifact; source timestamps must include timezone.",
+          "properties": {
+            "camera_id": {
+              "description": "Camera ID on this Protect server",
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Camera Id",
+              "type": "string"
+            },
+            "channel_index": {
+              "default": 0,
+              "description": "Channel: 0 high, 1 medium, 2 low",
+              "maximum": 2,
+              "minimum": 0,
+              "title": "Channel Index",
+              "type": "integer"
+            },
+            "end": {
+              "description": "ISO end timestamp with timezone; short-clip limit applies",
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "End",
+              "type": "string"
+            },
+            "start": {
+              "description": "ISO start timestamp with timezone",
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          "required": [
+            "camera_id",
+            "start",
+            "end"
+          ],
+          "title": "ExportClipArtifactInput",
+          "type": "object"
+        },
+        "output": {
+          "additionalProperties": true,
+          "description": "Structured view of the existing UniFi MCP tool response contract.",
+          "properties": {
+            "data": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Successful result payload.",
+              "title": "Data"
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Actionable error message for handled failures.",
+              "title": "Error"
+            },
+            "preview": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Mutation preview payload returned before confirmation.",
+              "title": "Preview"
+            },
+            "requires_confirmation": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "True when a mutation preview requires caller confirmation.",
+              "title": "Requires Confirmation"
+            },
+            "success": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "True when the tool call succeeded; false for handled errors.",
+              "title": "Success"
+            }
+          },
+          "title": "UniFiToolResponse",
+          "type": "object"
+        }
+      },
+      "title": "Export Clip Artifact"
     },
     {
       "annotations": {
@@ -4430,6 +4557,129 @@
         }
       },
       "title": "PTZ Zoom"
+    },
+    {
+      "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "auth_method": "local_only",
+      "description": "Read up to 65536 original MP4 bytes from an unexpired private clip on this Protect server. Returns bounded base64 in data with offsets and SHA-256 checksums. Reassemble using code, verify the complete file checksum, and expose the resulting MP4; never print chunks into chat. Camera media permission is checked on every call.",
+      "name": "protect_read_clip_chunk",
+      "permission_action": "read",
+      "permission_category": "recording",
+      "schema": {
+        "input": {
+          "additionalProperties": false,
+          "description": "Read a bounded original-file chunk, never a caller-supplied path.",
+          "properties": {
+            "artifact_id": {
+              "description": "Opaque ID from private clip export; never a path",
+              "pattern": "^[0-9a-f]{64}$",
+              "title": "Artifact Id",
+              "type": "string"
+            },
+            "camera_id": {
+              "description": "Same camera as the exported clip",
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Camera Id",
+              "type": "string"
+            },
+            "max_bytes": {
+              "default": 32768,
+              "description": "Maximum decoded chunk bytes",
+              "maximum": 65536,
+              "minimum": 1,
+              "title": "Max Bytes",
+              "type": "integer"
+            },
+            "offset": {
+              "default": 0,
+              "description": "Zero-based byte offset; then use next_offset",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "camera_id",
+            "artifact_id"
+          ],
+          "title": "ReadClipChunkInput",
+          "type": "object"
+        },
+        "output": {
+          "additionalProperties": true,
+          "description": "Structured view of the existing UniFi MCP tool response contract.",
+          "properties": {
+            "data": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Successful result payload.",
+              "title": "Data"
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Actionable error message for handled failures.",
+              "title": "Error"
+            },
+            "preview": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Mutation preview payload returned before confirmation.",
+              "title": "Preview"
+            },
+            "requires_confirmation": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "True when a mutation preview requires caller confirmation.",
+              "title": "Requires Confirmation"
+            },
+            "success": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "True when the tool call succeeded; false for handled errors.",
+              "title": "Success"
+            }
+          },
+          "title": "UniFiToolResponse",
+          "type": "object"
+        }
+      },
+      "title": "Read Clip Chunk"
     },
     {
       "annotations": {

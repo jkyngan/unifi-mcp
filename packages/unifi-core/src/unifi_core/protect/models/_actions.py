@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import ClassVar, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PtzMoveInput(BaseModel):
@@ -183,6 +183,30 @@ class DeleteRecordingInput(BaseModel):
     camera_id: str = Field(description="Camera UUID to delete recordings from")
     start: str = Field(description="ISO 8601 start of deletion range")
     end: str = Field(description="ISO 8601 end of deletion range")
+
+
+class ExportClipArtifactInput(BaseModel):
+    """Short, normal-speed artifact; source timestamps must include timezone."""
+
+    __action_input__: ClassVar[bool] = True
+    model_config = ConfigDict(extra="forbid")
+    camera_id: str = Field(min_length=1, max_length=128, description="Camera ID on this Protect server")
+    start: str = Field(min_length=1, max_length=64, description="ISO start timestamp with timezone")
+    end: str = Field(
+        min_length=1, max_length=64, description="ISO end timestamp with timezone; short-clip limit applies"
+    )
+    channel_index: int = Field(default=0, ge=0, le=2, strict=True, description="Channel: 0 high, 1 medium, 2 low")
+
+
+class ReadClipChunkInput(BaseModel):
+    """Read a bounded original-file chunk, never a caller-supplied path."""
+
+    __action_input__: ClassVar[bool] = True
+    model_config = ConfigDict(extra="forbid")
+    camera_id: str = Field(min_length=1, max_length=128, description="Same camera as the exported clip")
+    artifact_id: str = Field(pattern=r"^[0-9a-f]{64}$", description="Opaque ID from private clip export; never a path")
+    offset: int = Field(default=0, ge=0, strict=True, description="Zero-based byte offset; then use next_offset")
+    max_bytes: int = Field(default=32768, ge=1, le=65536, strict=True, description="Maximum decoded chunk bytes")
 
 
 class DeleteLiveviewInput(BaseModel):

@@ -7029,6 +7029,16 @@
       "reason": "returns MCP resource and polling instructions; API SSE and event resources are the authoritative streaming surface"
     },
     {
+      "name": "protect_export_clip_artifact",
+      "product": "protect",
+      "reason": "private clip artifacts belong to the opt-in MCP process store and authorization scope; raw media export and chunk retrieval are not exposed through the REST action API"
+    },
+    {
+      "name": "protect_read_clip_chunk",
+      "product": "protect",
+      "reason": "private clip artifacts belong to the opt-in MCP process store and authorization scope; raw media export and chunk retrieval are not exposed through the REST action API"
+    },
+    {
       "name": "protect_subscribe_events",
       "product": "protect",
       "reason": "returns MCP resource and polling instructions; API SSE and event resources are the authoritative streaming surface"

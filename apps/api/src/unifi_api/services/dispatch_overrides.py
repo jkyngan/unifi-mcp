@@ -221,7 +221,13 @@ DISPATCH_BINDING_OVERRIDES: dict[str, DispatchBindingOverride] = {
 _MCP_SUBSCRIPTION_EXCLUSION_REASON = (
     "returns MCP resource and polling instructions; API SSE and event resources are the authoritative streaming surface"
 )
+_MCP_PRIVATE_CLIP_EXCLUSION_REASON = (
+    "private clip artifacts belong to the opt-in MCP process store and authorization scope; "
+    "raw media export and chunk retrieval are not exposed through the REST action API"
+)
 API_ACTION_EXCLUSIONS: dict[str, ActionExclusion] = {
+    "protect_export_clip_artifact": ActionExclusion("protect", _MCP_PRIVATE_CLIP_EXCLUSION_REASON),
+    "protect_read_clip_chunk": ActionExclusion("protect", _MCP_PRIVATE_CLIP_EXCLUSION_REASON),
     "access_subscribe_events": ActionExclusion("access", _MCP_SUBSCRIPTION_EXCLUSION_REASON),
     "protect_subscribe_events": ActionExclusion("protect", _MCP_SUBSCRIPTION_EXCLUSION_REASON),
     "unifi_subscribe_events": ActionExclusion("network", _MCP_SUBSCRIPTION_EXCLUSION_REASON),
