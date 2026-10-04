@@ -99,8 +99,18 @@ cleanup. The standalone runner avoids controller bootstrap and software installs
 python scripts/test_private_clips_standalone.py
 ```
 
-Transport tests use an existing MCP/Pydantic environment and label its version.
-They do not replace running the locked production SDK or the full project gates.
+Transport tests require native MCP 2.x and use the production UniFi dispatcher,
+response serialization, execute and batch handlers. They no longer use an MCP
+1.30 import shim. With existing FFmpeg/ffprobe, they also exercise native
+uiprotect Camera/export streaming against a mocked HTTP response and compare
+independently decoded video and PCM audio. Set `HIIS_MCP_SOURCE` to an authorized
+local `mcp-server/index.ts` to test the actual three HIIS helper functions with
+existing Node TypeScript stripping, without importing server/config code.
+
+The standalone runner still bypasses package initializers and uses a synthetic
+controller. It does not replace normal imports, startup, or the full project gates.
+See [Linux verification results](private-clips-verification.md) for exact coverage
+and the remaining locked-environment blocker.
 Before rollout, run the official Protect manifest generator and required project
 checks in the approved locked environment. The isolated manifest additions are
 marked with a generation note until full regeneration is completed.

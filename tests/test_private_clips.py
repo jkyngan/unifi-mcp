@@ -371,6 +371,32 @@ class ClipTests(unittest.IsolatedAsyncioTestCase):
             await other.read(artifact_id=meta["artifact_id"], scope=SCOPE, camera_id="cam-test", offset=0, max_bytes=1)
         await other.close()
 
+    @unittest.skipUnless(sys.platform == "linux", "Linux filesystem security checks")
+    async def test_linux_private_modes_and_symlink_rejection(self):
+        import stat
+
+        meta = await self.export()
+        path = self.store._entries[meta["artifact_id"]].path
+        self.assertEqual(stat.S_IMODE(self.directory.stat().st_mode), 0o700)
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+        original = path.read_bytes()
+        target = Path(self.temp.name) / "unrelated.mp4"
+        target.write_bytes(original)
+        path.unlink()
+        path.symlink_to(target)
+        with self.assertRaises(ClipError):
+            await self.read(meta)
+        self.assertEqual(target.read_bytes(), original)
+        link = Path(self.temp.name) / "linked-store"
+        link.symlink_to(self.directory, target_is_directory=True)
+        with self.assertRaises(ClipError):
+            await ClipArtifactStore(link, self.limits).start()
+        public = Path(self.temp.name) / "public-store"
+        public.mkdir()
+        public.chmod(0o755)
+        with self.assertRaises(ClipError):
+            await ClipArtifactStore(public, self.limits).start()
+
     async def test_changed_file_size_rejected(self):
         meta = await self.export()
         self.store._entries[meta["artifact_id"]].path.write_bytes(b"truncated")
