@@ -10,7 +10,7 @@ from pathlib import Path
 image, source_arg, output_arg = sys.argv[1:]
 source, output = Path(source_arg).resolve(), Path(output_arg).resolve()
 recipe = Path(__file__).resolve().parent
-for tool in ("docker", "ffmpeg", "ffprobe"):
+for tool in ("docker",):
     assert shutil.which(tool), (
         f"Preinstalled {tool} required; do not install implicitly"
     )
@@ -19,6 +19,8 @@ output.mkdir(parents=True, exist_ok=False)
 output.chmod(0o777)
 shutil.copyfile(recipe / "container-roundtrip.py", output / "container-roundtrip.py")
 (output / "container-roundtrip.py").chmod(0o644)
+shutil.copyfile(recipe / "decode-outputs.py", output / "decode-outputs.py")
+(output / "decode-outputs.py").chmod(0o644)
 base = [
     "docker",
     "run",
@@ -72,53 +74,38 @@ run(
 )
 run(
     base
+    + mounts
+    + [
+        "--mount",
+        f"type=bind,src={output},dst=/out",
+        image,
+        "python",
+        "/out/decode-outputs.py",
+    ]
+)
+run(
+    base
     + [
         "--mount",
         f"type=bind,src={output},dst=/out",
         image,
         "python",
         "-c",
-        'from pathlib import Path; [p.chmod(0o644) for p in Path("/out").iterdir() if p.name != "container-roundtrip.py"]',
+        'from pathlib import Path; [p.chmod(0o644) for p in Path("/out").iterdir() if p.suffix != ".py"]',
     ]
 )
 
 
-def decoded(path, audio=False):
-    args = ["ffmpeg", "-v", "error", "-i", str(path)]
-    args += (
-        ["-map", "0:a:0", "-f", "s16le", "-"]
-        if audio
-        else ["-map", "0:v:0", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
-    )
-    return subprocess.check_output(args, timeout=60)
-
-
 results = []
+decoded_report = json.loads((output / "decoded.json").read_text())
 clips = sorted(output.glob("*.mp4"))
-assert len(clips) == 6
+assert len(clips) == len(decoded_report["results"]) == 6
 for path in clips:
     original = source / "tests/fixtures/clips" / path.name.split("-", 1)[1]
     assert path.read_bytes() == original.read_bytes()
-    video = decoded(path)
-    assert video and video == decoded(original)
-    streams = json.loads(
-        subprocess.check_output(
-            ["ffprobe", "-v", "error", "-show_streams", "-of", "json", str(path)]
-        )
-    )["streams"]
-    audio_present = any(s["codec_type"] == "audio" for s in streams)
-    assert audio_present == ("tone" in path.name)
-    if audio_present:
-        audio = decoded(path, True)
-        assert any(audio) and audio == decoded(original, True)
-    results.append(
-        {
-            "file": path.name,
-            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-            "decoded_equal": True,
-            "audio_present": audio_present,
-        }
-    )
+    decoded = next(r for r in decoded_report["results"] if r["file"] == path.name)
+    assert decoded["decoded_equal"]
+    results.append({**decoded, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
 image_id = subprocess.check_output(
     ["docker", "image", "inspect", image, "--format", "{{.Id}}"], text=True
 ).strip()

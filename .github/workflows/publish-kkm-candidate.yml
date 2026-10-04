@@ -27,8 +27,6 @@ jobs:
           set -euo pipefail
           command -v docker
           command -v python3
-          command -v ffmpeg
-          command -v ffprobe
           git init review
           git -C review remote add origin https://github.com/jkyngan/unifi-mcp.git
           git -C review fetch --depth=1 origin "$GITHUB_SHA"
